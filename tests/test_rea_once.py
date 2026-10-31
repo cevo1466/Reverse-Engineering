@@ -9,7 +9,7 @@ import unittest
 import zipfile
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "rea-one-shot" / "scripts" / "rea_once.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "skills" / "reverse-engineer-and-rebuild" / "scripts" / "rea_once.py"
 
 
 class ReaOnceTests(unittest.TestCase):
@@ -115,11 +115,11 @@ class ReaOnceTests(unittest.TestCase):
         result = self.run_cli("https://example.com/page", "--browser-executable", str(browser))
         self.assertEqual(result.returncode, 0, result.stderr)
         scenario = json.loads((self.root / "report" / "browser-scenario.json").read_text())
-        self.assertEqual(scenario["capture"]["at_end"], ["dom", "accessibility", "url"])
-        self.assertEqual([command[0] for command in self.commands()], ["validate-browser-scenario", "capture-browser-scenario"])
+        self.assertEqual(scenario["capture"]["at_end"], ["dom", "accessibility", "screenshot", "url"])
+        self.assertEqual([command[0] for command in self.commands()], ["capture-browser-scenario"])
         second = self.run_cli("https://example.com/page", "--browser-executable", str(browser))
         self.assertNotEqual(second.returncode, 0)
-        self.assertEqual(len(self.commands()), 2)
+        self.assertEqual(len(self.commands()), 1)
 
 
 if __name__ == "__main__":

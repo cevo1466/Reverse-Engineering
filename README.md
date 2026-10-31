@@ -1,60 +1,71 @@
-# REA One Shot
+# Reverse Engineer & Rebuild
 
-Bir uygulama dosyasını, paketi veya web sayfasını **tek komutla** REA üzerinden ilk incelemeye alır; ham kanıtı, işlem kaydını ve okunabilir bir raporu saklar. Agent skill’i, bu ilk incelemeden sonra sorunuzla ilgili fonksiyonları ve davranışı izleyerek kanıta dayalı açıklama hazırlar.
+Bir URL veya uygulama dosyasından **çalışan bir yeniden yapım** üretmek için agent skill’i. Hedefin görülebilen ekranlarını ve davranışlarını [REA](https://github.com/morluto/rea) ile kaydeder, aynı akışları kodlar, özgün hedefle karşılaştırır ve saptadığı farkları giderir.
 
-> [!NOTE]
-> Bu proje [REA](https://github.com/morluto/rea) üzerine kurulmuş bağımsız bir iş akışıdır. REA’nın resmî dağıtımı değildir. Yerel programları çalıştırmaz; web adresi verirseniz o sayfayı tarayıcıda açar.
+> **English:** Give your coding agent a website URL or shipped app artifact. The skill traces observable behavior, builds a runnable reconstruction in your workspace, and verifies the requested flows against the original. It reports exactly which states were compared and what remains unknown.
 
-## Skill’i kur
+## Kurulum ve tek çağrı
 
-Python 3.10+ ve REA'nın desteklediği Node.js sürümü (`^22.23.4 || ^24.22.1 || >=26.12.1`) yüklüyse:
+Python 3.10+, [REA'nın desteklediği Node.js sürümü](https://github.com/morluto/rea/blob/main/docs/installation.md) (`^22.23.4 || ^24.22.1 || >=26.12.1`) ve web hedefleri için Chrome tabanlı bir tarayıcı gerekir.
 
 ```bash
-npx skills add cevo1466/Tersine-M-hendislik --skill rea-one-shot
+npx skills add cevo1466/Tersine-M-hendislik --skill reverse-engineer-and-rebuild
 ```
 
-Codex veya başka bir uyumlu agent içinde şu şekilde çağırın:
+Ardından skill destekleyen kodlama agent’ınıza tek bir istek verin:
 
 ```text
-$rea-one-shot /absolute/path/to/application.asar: Arama özelliği nasıl çalışıyor? Kanıtları göster.
+$reverse-engineer-and-rebuild https://example.com: Bu sitenin ana sayfasını ve arama akışını mevcut projemde çalışan şekilde birebir yeniden oluştur. Masaüstü ve mobil görünümü hedefle karşılaştır; farkları gider.
 ```
 
-`skills add` skill talimatlarını kurar. REA kurulumunu veya analiz motorlarını kurmaz. Skill, ilk inceleme için kendi `scripts/rea_once.py` dosyasını kullanır; `rea` kurulu değilse sabitlenmiş `rea-agents@6.8.0` sürümünü `npx` ile çağırır. Terminal örnekleri depo kökünden çalıştırılır; skill kurulumu sonrası agent `$rea-one-shot` çağrısı kurulu dosyayı kendi konumundan bulur.
+Yerel uygulama örneği:
 
-## Terminalden tek komut
+```text
+$reverse-engineer-and-rebuild /absolute/path/to/app.asar: Ayarlar ekranını ve kaydetme davranışını çalışan bir uygulama olarak yeniden oluştur; gözlemlediğin durumlarla doğrula.
+```
 
-Depoyu klonladıktan sonra:
+**Tek çağrı agent iş akışını başlatır.** `skills add` skill talimatlarını kurar; REA'yı, tarayıcıyı veya Ghidra/JADX gibi analiz araçlarını kurmaz. Skill tek başına bağımsız bir `clone` terminal komutu değildir. Sonuç, hedefin erişilebilirliğine, mevcut araçlara ve incelenebilen davranışa bağlıdır.
+
+## Skill ne yapar?
+
+| Aşama | Somut çıktı |
+| --- | --- |
+| Hedefi gözlemle | REA'nın ham Evidence JSON'u, hedef kimliği, ekran/işlev akışları ve bilinmeyenler |
+| Çalışan kopyayı kur | Mevcut projede açılabilen/çalıştırılabilen kod; gezinme, etkileşim, durum ve responsive görünüm |
+| Hedefle karşılaştır | Aynı akışların hedef ve kopya kayıtları; ekran görüntüsü, DOM, erişilebilirlik, URL veya işlem çıktısı farkları |
+| Farkları gider | Yeniden çalıştırılmış kontroller; hangi akışların eşleştiğini, hangilerinin farklı veya bilinmeyen kaldığını gösteren sonuç |
+
+Web sitesi ve web uygulaması, bu sürümün en ayrıntılı doğrulama yoludur. APK, Electron/JavaScript, .NET, native ikili ve arşivler için de analiz ve yeniden yapım yolu vardır; bu hedeflerde gerçek davranış eşitliği ancak özgün uygulama çalıştırılabildiğinde ve karşılaştırılabilir örnekler gözlemlendiğinde söylenir. Statik analiz tek başına “birebir” kanıtı değildir.
+
+## “Birebir” ne demek?
+
+Skill, kullanıcının istediği ve gözlemleyebildiği **rota, ekran, giriş, etkileşim, görünüm ve çalışma koşullarında** hedefe olabildiğince yakın bir kopya amaçlar. Nihai rapor test edilen viewport'ları ve akışları açıkça listeler. Gizli sunucu mantığı, erişilemeyen hesap durumları veya hiç gözlemlenmemiş ekranlar için tam eşitlik iddiasında bulunmaz. REA'nın [web karşılaştırması](https://github.com/morluto/rea/blob/main/docs/browser-scenario-contract.md#scenario-comparison) farklı alan adlarında eşleştirmeyi reddedebilir; bu durumda kayıtlar doğrudan karşılaştırılır ve otomatik hüküm uydurulmaz.
+
+## İlk inceleme yardımcısı
+
+Skill içindeki Python dosyası yalnızca **ilk kanıt toplama aşamasını** terminalden çalıştırır:
 
 ```bash
-python3 skills/rea-one-shot/scripts/rea_once.py /absolute/path/to/target --output ./rea-report
+python3 skills/reverse-engineer-and-rebuild/scripts/rea_once.py /absolute/path/to/target --output ./rea-report
 ```
 
-Örnekler:
+Web hedefi için de URL verilebilir. Yardımcı, kurulu `rea` komutunu kullanır; yoksa `npx -y rea-agents@6.8.0` çağırır. Çıktı klasörüne `manifest.json`, `report.md`, adım adım ham JSON ve stderr kayıtları yazar; mevcut klasörün üzerine yazmaz. Çalışan kopyayı yapan, bu kanıttan sonra kod yazan ve karşılaştırmayı yürüten agent’tır.
+
+İki web Evidence kaydını REA ile karşılaştırmak için ikinci yardımcı, Evidence katmanını otomatik açar ve sonuç ile özet tabloyu saklar:
 
 ```bash
-python3 skills/rea-one-shot/scripts/rea_once.py ./app.asar --output ./report-js
-python3 skills/rea-one-shot/scripts/rea_once.py ./program --provider ghidra --output ./report-native
-python3 skills/rea-one-shot/scripts/rea_once.py ./application.apk --android-code --output ./report-apk
-python3 skills/rea-one-shot/scripts/rea_once.py https://example.com --output ./report-web
+python3 skills/reverse-engineer-and-rebuild/scripts/compare_web.py reference-evidence.json rebuild-evidence.json --output ./comparison
 ```
 
-Çıktı klasöründe `manifest.json`, `report.md`, her adımın REA JSON çıktısı ve stderr kaydı bulunur. Mevcut çıktı klasörünün üzerine yazılmaz. Bir adım başarısız olsa bile mevcut kayıtlar tutulur ve komut başarısız çıkış kodu döner.
-
-## Gereksinimler ve kapsam
-
-- Python 3.10+; REA için desteklenen Node.js sürümü: `^22.23.4 || ^24.22.1 || >=26.12.1`.
-- Yerel native kodun derin analizi için önceden yapılandırılmış Ghidra, Hopper, IDA veya Kuna gerekir. REA tek uygun sağlayıcıyı seçebilir; birden çok sağlayıcı varsa `--provider` kullanın. Analiz başarısızsa komut dosya envanterini ayrıca kaydeder ve `partial` durumuyla çıkar.
-- APK kodu için `--android-code`, önceden yapılandırılmış JADX ve tam JDK gerekir. APK envanteri ve imzası bunlar olmadan incelenebilir.
-- Web adresi için kurulu Chrome tabanlı bir tarayıcı gerekir. Tarayıcı bulunamazsa `--browser-executable` kullanın.
-- JavaScript/Electron klasörleri ve ASAR dosyaları statik olarak analiz edilir. Linux’ta bu işlem için `ps` gereklidir.
-
-Başlangıç raporu genel kapsamı gösterir. Belirli bir özelliğin mekanizmasını kanıtlamak için skill içindeki takip analizi kullanın. REA’nın kendi [CLI rehberi](https://github.com/morluto/rea/blob/main/docs/cli.md) ve [kurulum rehberi](https://github.com/morluto/rea/blob/main/docs/installation.md) ek araçları açıklar.
+Native kodun derin analizi önceden yapılandırılmış Ghidra/Hopper/IDA/Kuna gerektirir. APK kodu için JADX ve tam JDK gerekir. Linux'taki JavaScript incelemesi için `ps` gerekir. Eksik araç halinde yardımcı mevcut kanıtı korur ve sınırı belirtir. Detaylar [skill talimatlarında](skills/reverse-engineer-and-rebuild/SKILL.md) ve [hedef rehberinde](skills/reverse-engineer-and-rebuild/references/targets.md).
 
 ## Geliştirme
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 /path/to/skill-creator/scripts/quick_validate.py skills/rea-one-shot
+python3 /path/to/skill-creator/scripts/quick_validate.py skills/reverse-engineer-and-rebuild
 ```
 
-MIT lisansı. REA ayrı bir MIT lisanslı projedir.
+Önceki `rea-one-shot` adı, bu sürümde `reverse-engineer-and-rebuild` olarak değişti. Mevcut kurulumları yeni adla güncelleyin.
+
+MIT lisansı. Bu proje REA'dan bağımsızdır; REA'nın resmî dağıtımı değildir.

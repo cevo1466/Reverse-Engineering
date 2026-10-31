@@ -140,14 +140,13 @@ def make_steps(args: argparse.Namespace, kind: str, path: Path | None, output: P
             "browser": {"mode": "launch", "executable_path": browser},
             "start_url": {"url": args.target},
             "actions": [{"step_id": "settle", "action": "wait_for_timeout", "duration_ms": 100}],
-            "capture": {"at_end": ["dom", "accessibility", "url"]},
+            "capture": {"at_end": ["dom", "accessibility", "screenshot", "url"]},
         }
         scenario_path = output / "browser-scenario.json"
         scenario_path.write_text(json.dumps(scenario, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         return [
-            ("validate-browser-scenario", ["validate-browser-scenario", str(scenario_path), "--json"]),
             ("capture-browser-scenario", ["capture-browser-scenario", str(scenario_path), "--json"]),
-        ], ["One page load is observed; interactions and background completion need focused follow-up."]
+        ], ["One page load is observed; the short settle step is not an application readiness check. Capture focused interactions and page-specific ready states before rebuilding."]
     assert path is not None
     target = str(path)
     if kind == "javascript":
@@ -274,7 +273,7 @@ def write_report(manifest: dict, output: Path) -> None:
         lines.append("")
     lines.extend([
         "## Next analysis", "",
-        "This is the first pass. Inspect the raw REA Evidence, trace the functions or behavior relevant to your question, and cite exact locations. Exit code zero does not prove complete coverage.", "",
+        "This is the first pass. Inspect the raw REA Evidence, trace the requested behavior, implement the rebuild, and compare the same observed cases on both sides. Exit code zero does not prove complete coverage or parity.", "",
     ])
     (output / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
@@ -303,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
             output = Path(args.output).expanduser().resolve()
             output.mkdir(parents=True, exist_ok=False)
         else:
-            output = Path(tempfile.mkdtemp(prefix="rea-one-shot-"))
+            output = Path(tempfile.mkdtemp(prefix="rea-rebuild-"))
         steps, warnings = make_steps(args, kind, path, output)
         digest = file_sha256(path)
     except (ValueError, OSError) as error:

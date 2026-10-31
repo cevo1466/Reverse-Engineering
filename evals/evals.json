@@ -1,22 +1,22 @@
 {
-  "skill_name": "rea-one-shot",
+  "skill_name": "reverse-engineer-and-rebuild",
   "evals": [
     {
       "id": 1,
-      "prompt": "Bu Electron uygulamasındaki arama kutusunun sonuçları nereden aldığını incele: /tmp/sample-app.asar. Dosya, fonksiyon ve kanıt bağlantılarını göster.",
-      "expected_output": "REA ile statik JavaScript/Electron analizi; arama akışına odaklanan kanıtlı açıklama, kapsama ve bilinmeyenler.",
+      "prompt": "https://example.test/catalog sitesinin arama akışını bu boş web projesinde çalışan şekilde yeniden oluştur. Masaüstü ve mobil görünümü, boş sonuç ve dolu sonuç durumlarını hedefle karşılaştır.",
+      "expected_output": "Çalışan web uygulaması ve çalıştırma komutu; hedef ve kopya için aynı arama durumlarının kanıtları; ekran, DOM ve davranış farklarının düzeltilmesi veya açıkça raporlanması.",
       "files": []
     },
     {
       "id": 2,
-      "prompt": "Elimde yalnızca /tmp/sample-program adlı ELF var. Ghidra hazır; lisans doğrulamasının hangi fonksiyonlarda yapıldığını kanıtlarıyla açıkla.",
-      "expected_output": "Yapılandırılmış sağlayıcıyla yerel ikili analiz; doğrulanmış çapraz başvurular, pseudocode sınırları ve kanıt kaynakları.",
+      "prompt": "/tmp/sample-app.asar içindeki ayarlar ekranını mevcut Electron projemde yeniden oluştur. Bir ayarı değiştirip kaydetme akışını orijinal uygulama ile karşılaştır.",
+      "expected_output": "İlgili statik REA kanıtı ve erişilebilen çalışma gözlemleri; çalışan ayarlar uygulaması; aynı girişler için karşılaştırma, bilinmeyen durumlar ve çalıştırma talimatı.",
       "files": []
     },
     {
       "id": 3,
-      "prompt": "https://example.com sayfasının ilk yüklenişinde hangi öğeler görünüyor? DOM kanıtını göster, sayfada etkileşim uydurma.",
-      "expected_output": "Tarayıcı senaryosu ile seçilen URL'nin DOM/erişilebilirlik kanıtı; tek sayfa yükünün sınırları.",
+      "prompt": "/tmp/sample-tool adlı CLI programının belgelenmiş dönüştürme komutunu çalışan bir program olarak yeniden yaz. Başarılı, bozuk giriş ve hata durumlarını orijinalle karşılaştır.",
+      "expected_output": "Çalışan CLI; üç orijinal ve yeniden yapım işlem örneğinin çıktıları veya karşılaştırma kayıtları; yalnızca gözlemlenen davranışa dayalı eşitlik iddiası.",
       "files": []
     }
   ]
