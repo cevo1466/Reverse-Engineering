@@ -185,6 +185,14 @@ def evidence_preview(path: Path) -> list[str]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         return ["REA output was not parseable JSON; inspect the raw output and stderr."]
+    if isinstance(payload, dict) and isinstance(payload.get("error"), str):
+        details = payload.get("details")
+        result = [f"REA error: `{payload.get('code', 'unknown')}` ({payload.get('category', 'unknown')})."]
+        if isinstance(payload.get("message"), str):
+            result.append("Message: " + payload["message"].replace("\n", " ")[:300])
+        if isinstance(details, dict) and details.get("partial_observation") is not None:
+            result.append("REA retained a partial observation in this JSON file; do not treat it as a completed result.")
+        return result
     result: list[str] = []
     candidates = [payload]
     for _ in range(4):
@@ -196,12 +204,27 @@ def evidence_preview(path: Path) -> list[str]:
                 op = value.get("operation")
                 if isinstance(op, str):
                     result.append(f"Evidence operation: `{op}`.")
+                subject = value.get("subject")
+                if isinstance(subject, dict):
+                    digest = subject.get("digest")
+                    if isinstance(digest, dict) and isinstance(digest.get("sha256"), str):
+                        result.append(f"REA subject SHA-256: `{digest['sha256']}`.")
                 provider = value.get("provider")
                 if isinstance(provider, dict) and isinstance(provider.get("id"), str):
                     result.append(f"Provider: `{provider['id']}`.")
+                normalized = value.get("normalized_result")
+                if isinstance(normalized, dict):
+                    stats = normalized.get("statistics")
+                    if isinstance(stats, dict):
+                        scalar_stats = {key: number for key, number in stats.items() if isinstance(number, (int, float)) and not isinstance(number, bool)}
+                        if scalar_stats:
+                            result.append("Statistics: " + ", ".join(f"`{key}={number}`" for key, number in list(scalar_stats.items())[:8]) + ".")
                 limitations = value.get("limitations")
                 if isinstance(limitations, list) and limitations:
-                    result.append(f"Evidence records {len(limitations)} limitation(s); inspect the raw JSON.")
+                    result.append(f"Evidence records {len(limitations)} limitation(s).")
+                    for limitation in limitations[:3]:
+                        if isinstance(limitation, str):
+                            result.append("Limit: " + limitation.replace("\n", " ")[:240])
                 return result
             for key in ("data", "evidence", "result", "value"):
                 nested = value.get(key)

@@ -25,7 +25,9 @@ class ReaOnceTests(unittest.TestCase):
             "from pathlib import Path\n"
             "args = sys.argv[1:]\n"
             "with Path(os.environ['REA_STUB_LOG']).open('a') as f: f.write(json.dumps(args) + '\\n')\n"
-            "if os.environ.get('REA_STUB_FAIL') == args[0]: sys.exit(7)\n"
+            "if os.environ.get('REA_STUB_FAIL') == args[0]:\n"
+            "    print(json.dumps({'error': 'fixture failure', 'code': 'fixture_error', 'category': 'execution_failure', 'message': 'fixture failed', 'details': {'partial_observation': {'operation': args[0]}}}))\n"
+            "    sys.exit(7)\n"
             "print(json.dumps({'data': {'operation': args[0], 'provider': {'id': 'stub'}, 'normalized_result': {}, 'limitations': []}}))\n",
             encoding="utf-8",
         )
@@ -105,6 +107,7 @@ class ReaOnceTests(unittest.TestCase):
         self.assertEqual([command[0] for command in self.commands()], ["inspect-artifact", "inspect-apk-signature"])
         self.assertEqual(self.manifest()["status"], "failed")
         self.assertTrue((self.root / "report" / "inspect-artifact.json").exists())
+        self.assertIn("REA error: `fixture_error`", (self.root / "report" / "report.md").read_text())
 
     def test_web_scenario_captures_content_and_refuses_overwrite(self):
         browser = self.root / "chromium"
