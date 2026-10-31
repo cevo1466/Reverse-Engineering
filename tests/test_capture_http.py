@@ -1,5 +1,8 @@
+from contextlib import redirect_stderr, redirect_stdout
 import importlib.util
+import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -98,7 +101,8 @@ class CaptureHttpTests(unittest.TestCase):
                 raise capture_http.CaptureError("probe unavailable")
 
             with patch.object(capture_http, "make_sender", return_value=fake_send):
-                code = capture_http.main([str(source), "--base-url", "http://localhost:8080", "--output", str(output)])
+                with redirect_stdout(io.StringIO()):
+                    code = capture_http.main([str(source), "--base-url", "http://localhost:8080", "--output", str(output)])
             self.assertEqual(code, 1)
             manifest = json.loads((output / "manifest.json").read_text())
             self.assertEqual(manifest["status"], "failed")
@@ -124,6 +128,26 @@ class CaptureHttpTests(unittest.TestCase):
             result = subprocess.run([sys.executable, str(SCRIPT), str(source), "--base-url", "http://localhost:8080", "--output", str(output)], capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse(output.exists())
+
+    def test_non_json_numeric_constant_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "scenario.json"
+            source.write_text('{"schema_version":1,"cases":[{"id":"read","request":{"method":"POST","path":"/x","body":{"value":NaN}}}]}')
+            with self.assertRaisesRegex(capture_http.CaptureError, "non-JSON numeric constant"):
+                capture_http.read_scenario(source)
+
+    def test_remote_secret_header_requires_https_and_cookie_capture_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "scenario.json"
+            source.write_text(json.dumps({"schema_version": 1, "cases": [{"id": "read", "request": {"method": "GET", "path": "/x"}}]}))
+            with patch.dict(os.environ, {"TEST_TOKEN": "secret"}):
+                with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    capture_http.main([str(source), "--base-url", "http://example.test", "--allow-remote-test", "--header-env", "Authorization=TEST_TOKEN", "--output", str(root / "report")])
+            self.assertFalse((root / "report").exists())
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                capture_http.main([str(source), "--base-url", "http://localhost:8080", "--capture-header", "Set-Cookie", "--output", str(root / "report")])
+            self.assertFalse((root / "report").exists())
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+from http.cookiejar import CookieJar
 import hashlib
 import ipaddress
 import json
@@ -19,7 +20,7 @@ import sys
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, Request, build_opener
 
 from report_safety import create_report_dir
 
@@ -28,6 +29,7 @@ METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}
 VARIABLE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 MAX_BODY_BYTES = 1_000_000
+SENSITIVE_CAPTURE_HEADERS = {"set-cookie", "cookie", "authorization", "proxy-authorization"}
 
 
 class CaptureError(ValueError):
@@ -45,13 +47,17 @@ def validate_base_url(url: str, allow_remote_test: bool) -> str:
         raise CaptureError("Base URL must be HTTP(S) without embedded credentials")
     if parsed.path not in ("", "/") or parsed.query or parsed.fragment:
         raise CaptureError("Base URL must be an origin without path, query, or fragment")
-    try:
-        is_loopback = ipaddress.ip_address(parsed.hostname).is_loopback
-    except ValueError:
-        is_loopback = parsed.hostname.lower() == "localhost"
+    is_loopback = loopback_host(parsed.hostname)
     if not is_loopback and not allow_remote_test:
         raise CaptureError("Remote targets require --allow-remote-test and an authorized resettable test environment")
     return url.rstrip("/")
+
+
+def loopback_host(hostname: str) -> bool:
+    try:
+        return ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return hostname.lower() == "localhost"
 
 
 def validate_request(request: Any, context: str) -> None:
@@ -69,7 +75,10 @@ def validate_request(request: Any, context: str) -> None:
 
 
 def read_scenario(path: Path) -> list[dict[str, Any]]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    def reject_constant(value: str) -> None:
+        raise CaptureError(f"Scenario contains a non-JSON numeric constant: {value}")
+
+    data = json.loads(path.read_text(encoding="utf-8"), parse_constant=reject_constant)
     if not isinstance(data, dict) or type(data.get("schema_version")) is not int or data["schema_version"] != 1 or set(data) != {"schema_version", "cases"}:
         raise CaptureError("Scenario must contain schema_version 1 and cases")
     cases = data["cases"]
@@ -211,7 +220,9 @@ def parse_header_env(entries: list[str]) -> dict[str, str]:
 
 
 def make_sender(base_url: str, headers: dict[str, str], timeout_seconds: float, captured_headers: list[str]) -> Callable[[dict[str, Any]], dict[str, Any]]:
-    opener = build_opener(NoRedirect())
+    # One ephemeral cookie jar per scenario preserves login sessions without
+    # writing cookie values to the comparable transcript or manifest.
+    opener = build_opener(HTTPCookieProcessor(CookieJar()), NoRedirect())
     selected = {name.lower() for name in captured_headers}
 
     def send(request: dict[str, Any]) -> dict[str, Any]:
@@ -219,7 +230,7 @@ def make_sender(base_url: str, headers: dict[str, str], timeout_seconds: float, 
         if any(isinstance(value, (dict, list)) for value in query.values()):
             raise CaptureError("Query values must be scalar")
         url = base_url + request["path"] + ("?" + urlencode(query) if query else "")
-        body = json.dumps(request["body"], ensure_ascii=False).encode("utf-8") if "body" in request else None
+        body = json.dumps(request["body"], ensure_ascii=False, allow_nan=False).encode("utf-8") if "body" in request else None
         outgoing = dict(headers)
         if body is not None:
             outgoing.setdefault("Content-Type", "application/json")
@@ -234,7 +245,6 @@ def make_sender(base_url: str, headers: dict[str, str], timeout_seconds: float, 
             body_bytes = response.read(MAX_BODY_BYTES + 1)
             if len(body_bytes) > MAX_BODY_BYTES:
                 raise CaptureError("HTTP response exceeds the 1 MB capture limit")
-            content_type = response.headers.get("Content-Type", "")
             try:
                 text = body_bytes.decode("utf-8")
                 try:
@@ -268,7 +278,11 @@ def main(argv: list[str] | None = None) -> int:
             raise CaptureError("--timeout-seconds must be greater than 0 and at most 120")
         if any(not TOKEN.fullmatch(name) for name in args.capture_header):
             raise CaptureError("Invalid --capture-header name")
+        if any(name.lower() in SENSITIVE_CAPTURE_HEADERS for name in args.capture_header):
+            raise CaptureError("Cookie and authorization headers cannot be recorded")
         headers = parse_header_env(args.header_env)
+        if headers and urlsplit(base_url).scheme == "http" and not loopback_host(urlsplit(base_url).hostname or ""):
+            raise CaptureError("Environment-sourced headers require HTTPS for remote test origins")
         sender = make_sender(base_url, headers, args.timeout_seconds, args.capture_header)
         output = args.output.expanduser().resolve()
         create_report_dir(output)
