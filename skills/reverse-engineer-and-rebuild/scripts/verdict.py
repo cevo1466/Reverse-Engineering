@@ -103,3 +103,82 @@ def cases_from(kind: str, data: dict, source: Path) -> list[dict]:
             reason = f"{count(row.get('differences'))} difference(s), {count(row.get('unknowns'))} unknown(s)"
             rows.append(("http:" + identifier(row.get("id"), f"{source}: HTTP case"), normalise_status(row.get("status")), reason))
     return [{"case_id": case_id, "kind": kind, "status": status, "reason": reason} for case_id, status, reason in rows]
+
+
+def read_result(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise VerdictError(f"{path}: {error}") from error
+    if not isinstance(data, dict):
+        raise VerdictError(f"{path}: result must be a JSON object")
+    return data
+
+
+def expand(paths: list[Path]) -> list[Path]:
+    """Replace each directory with the known result files directly inside it."""
+    files = []
+    for given in paths:
+        path = given.expanduser()
+        if path.is_dir():
+            found = [path / name for name in RESULT_NAMES if (path / name).is_file()]
+            if not found:
+                raise VerdictError(f"{path}: no result file ({', '.join(RESULT_NAMES)})")
+            files.extend(found)
+        elif path.is_file():
+            files.append(path)
+        else:
+            raise VerdictError(f"{path}: not found")
+    return files
+
+
+def build_verdict(files: list[Path], output: Path) -> dict:
+    cases = []
+    seen = set()
+    for path in files:
+        source = path.resolve()
+        data = read_result(source)
+        for case in cases_from(detect_kind(data, source), data, source):
+            if case["case_id"] in seen:
+                raise VerdictError(f"duplicate case ID {case['case_id']}")
+            seen.add(case["case_id"])
+            case["evidence"] = os.path.relpath(source, output)
+            cases.append(case)
+    totals = {name: sum(case["status"] == name for case in cases) for name in ("matched", "different", "unknown")}
+    overall = "different" if totals["different"] else "unknown" if totals["unknown"] or not cases else "matched"
+    return {"schema_version": 1, "overall": overall, "totals": totals, "scope": SCOPE, "cases": cases}
+
+
+def cell(value: Any) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def write_report(output: Path, verdict: dict) -> None:
+    create_report_dir(output)
+    (output / "verdict.json").write_text(json.dumps(verdict, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    lines = ["# Verdict", "", f"Overall: **{verdict['overall']}**. {SCOPE}", "", "| Case | Kind | Status | Reason | Evidence |", "| --- | --- | --- | --- | --- |"]
+    for case in verdict["cases"]:
+        lines.append("| " + " | ".join(cell(case[key]) for key in ("case_id", "kind", "status", "reason", "evidence")) + " |")
+    (output / "verdict.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("results", nargs="+", type=Path, help="result files, or directories that contain them")
+    parser.add_argument("--output", required=True, type=Path, help="new private verdict directory")
+    args = parser.parse_args(argv)
+    try:
+        output = args.output.expanduser().resolve()
+        if output.exists():
+            raise VerdictError(f"{output}: output directory already exists")
+        verdict = build_verdict(expand(args.results), output)
+        write_report(output, verdict)
+    except (VerdictError, OSError) as error:
+        print(f"verdict: {error}", file=sys.stderr)
+        return 2
+    print(output)
+    return {"matched": 0, "different": 1, "unknown": 2}[verdict["overall"]]
+
+
+if __name__ == "__main__":
+    sys.exit(main())

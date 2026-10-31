@@ -126,5 +126,91 @@ class CasesFromTests(unittest.TestCase):
             verdict.cases_from("http", http({"status": "matched_observations"}), self.source)
 
 
+class VerdictCommandTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+
+    def write(self, name, data):
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(data if isinstance(data, str) else json.dumps(data), encoding="utf-8")
+        return path
+
+    def run_main(self, *paths, output="out"):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = verdict.main([*map(str, paths), "--output", str(self.root / output)])
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_all_matched_exits_zero_and_writes_report(self):
+        code, out, err = self.run_main(self.write("a/pixel-diff.json", pixel()), self.write("b/comparison.json", http(http_case())))
+        self.assertEqual((code, err), (0, ""), err)
+        report = json.loads((self.root / "out" / "verdict.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["overall"], "matched")
+        self.assertEqual(report["totals"], {"matched": 2, "different": 0, "unknown": 0})
+        self.assertEqual({case["case_id"] for case in report["cases"]}, {"pixel:a", "http:create"})
+        self.assertTrue(all(not Path(case["evidence"]).is_absolute() for case in report["cases"]))
+        self.assertEqual((self.root / "out" / ".gitignore").read_text(encoding="utf-8"), "*\n")
+        markdown = (self.root / "out" / "verdict.md").read_text(encoding="utf-8")
+        self.assertIn("Overall: **matched**", markdown)
+        self.assertIn("| pixel:a | pixel | matched |", markdown)
+        self.assertEqual(out.strip(), str((self.root / "out").resolve()))
+
+    def test_one_different_exits_one(self):
+        code, _, _ = self.run_main(self.write("a/pixel-diff.json", pixel()), self.write("b/visual-summary.json", web(web_row("x", False), status="different")))
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads((self.root / "out" / "verdict.json").read_text(encoding="utf-8"))["overall"], "different")
+
+    def test_unknown_without_different_exits_two_and_writes_report(self):
+        code, _, _ = self.run_main(self.write("a/visual-summary.json", web(web_row("x", None), status="unknown")))
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads((self.root / "out" / "verdict.json").read_text(encoding="utf-8"))["overall"], "unknown")
+
+    def test_zero_cases_is_unknown(self):
+        code, _, _ = self.run_main(self.write("a/visual-summary.json", web(status="unknown")))
+        self.assertEqual(code, 2)
+
+    def test_directory_argument_finds_known_files(self):
+        self.write("run/pixel-diff.json", pixel())
+        self.write("run/notes.json", "not read")
+        code, _, err = self.run_main(self.root / "run")
+        self.assertEqual((code, err), (0, ""), err)
+
+    def test_pipe_in_reason_is_escaped(self):
+        data = web(web_row("x", None), status="unknown")
+        data["steps"][0]["reason"] = "a | b"
+        self.run_main(self.write("a/visual-summary.json", data))
+        self.assertIn("a \\| b", (self.root / "out" / "verdict.md").read_text(encoding="utf-8"))
+
+    def assert_error(self, *paths, output="out"):
+        code, out, err = self.run_main(*paths, output=output)
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertTrue(err.startswith("verdict: "), err)
+
+    def test_errors_exit_two_and_write_nothing(self):
+        self.assert_error(self.write("bad.json", "{not json"))
+        self.assertFalse((self.root / "out").exists())
+        self.assert_error(self.write("shape.json", {"hello": "world"}))
+        self.assertFalse((self.root / "out").exists())
+        self.assert_error(self.root / "missing.json")
+        self.assertFalse((self.root / "out").exists())
+        self.assert_error(self.write("empty/readme.txt", "x").parent)
+        self.assertFalse((self.root / "out").exists())
+
+    def test_duplicate_case_id_is_an_error(self):
+        path = self.write("a/pixel-diff.json", pixel())
+        self.assert_error(path, path)
+        self.assertFalse((self.root / "out").exists())
+
+    def test_existing_output_directory_is_an_error(self):
+        path = self.write("a/pixel-diff.json", pixel())
+        (self.root / "out").mkdir()
+        self.assert_error(path)
+        self.assertEqual(list((self.root / "out").iterdir()), [])
+
+
 if __name__ == "__main__":
     unittest.main()
