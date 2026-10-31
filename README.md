@@ -54,10 +54,12 @@ Varsayılan ölçüt tam piksel eşitliğidir. İstenirse açıkça belirtilen k
 Skill, istek/yanıtla birlikte **işlem sonrası durumu** kaydeder: örneğin oluşturma, ardından okuma; geçersiz giriş, ardından durumun değişmediğini okuma; güncelleme ve silme. Kaydedilmiş hedef ve kopya vakaları, ağa yeniden istek göndermeyen yardımcıyla karşılaştırılır:
 
 ```bash
-python3 skills/reverse-engineer-and-rebuild/scripts/compare_http.py reference.json rebuild.json --output ./api-check
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_http.py scenario.json --base-url http://127.0.0.1:8080 --output ./reference-api
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_http.py scenario.json --base-url http://127.0.0.1:8081 --output ./rebuild-api
+python3 skills/reverse-engineer-and-rebuild/scripts/compare_http.py ./reference-api/transcript.json ./rebuild-api/transcript.json --output ./api-check
 ```
 
-Bu yöntem test edilen iş kurallarını ve kalıcılığı doğrular. Gözlenemeyen yetkilendirme, eşzamanlılık veya gizli sunucu kurallarını kendiliğinden keşfetmez. [Backend rehberi](skills/reverse-engineer-and-rebuild/references/backend.md) vaka biçimini ve kapsama sınırını açıklar.
+Senaryo kaydedici, ilk yanıttan üretilen kimliği sonraki isteklerde kullanabilir ve işlem sonrası durumu ayrıca okuyabilir. Uzak test sunucuları açık `--allow-remote-test` seçeneği gerektirir; yazma istekleri otomatik tekrarlanmaz. Bu yöntem test edilen iş kurallarını ve kalıcılığı doğrular. Gözlenemeyen yetkilendirme, eşzamanlılık veya gizli sunucu kurallarını kendiliğinden keşfetmez. [Backend rehberi](skills/reverse-engineer-and-rebuild/references/backend.md) vaka biçimini ve kapsama sınırını açıklar.
 
 ## “Birebir” ne demek?
 

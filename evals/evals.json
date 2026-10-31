@@ -28,7 +28,7 @@
     {
       "id": 5,
       "prompt": "https://example.test/api/items API'sini ve onu kullanan arayüzü yeniden oluştur. Oluşturma, ardından okuma, geçersiz giriş, güncelleme ve silme akışlarında hedef ve kopyanın HTTP yanıtlarını ve kalıcı durumunu karşılaştır.",
-      "expected_output": "Çalışan API ve bağlı arayüz; doğrulama ve kalıcı veri davranışı; aynı başlangıç durumundan alınmış istek/yanıt/durum kayıtları ve compare_http.py karşılaştırması; gizli kurallar için sınır beyanı.",
+      "expected_output": "Çalışan API ve bağlı arayüz; doğrulama ve kalıcı veri davranışı; aynı senaryodan ve başlangıç durumundan capture_http.py ile alınmış istek/yanıt/durum kayıtları, üretilen kimliklerin tutarlılığı ve compare_http.py karşılaştırması; gizli kurallar için sınır beyanı.",
       "files": []
     }
   ]
