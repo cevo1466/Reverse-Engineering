@@ -26,18 +26,28 @@ For a local HTML project, start its normal development server and capture its lo
 
 ## Compare and fix
 
-Run both apps and save the reference and rebuild Evidence files. The bundled helper extracts their `normalized_result` captures before invoking REA; passing the full Evidence wrappers straight to `rea compare-web-captures` is an input error in REA 6.8.0:
+Run both apps and save the reference and rebuild Evidence files. The bundled helper extracts their `normalized_result` captures before invoking REA; passing the full Evidence wrappers straight to `rea compare-web-captures` is an input error in REA 6.8.0. It also decodes every aligned captured screenshot and compares pixels at matching viewport settings:
 
 ```bash
 python3 <this-skill-directory>/scripts/compare_web.py reference-evidence.json rebuild-evidence.json --output NEW_COMPARISON_DIR
 ```
 
-The output contains `rea-comparison.json`, `comparison.md`, and the two normalized captures. REA aligns unique `step_id` values and action kinds, and requires compatible browser/origin context. A reference domain versus localhost can produce an alignment failure. Do **not** translate that into a parity verdict. Inspect the captures side by side: compare the screenshots at the same dimensions, visible text/DOM, accessibility names and order, navigation destination, control states, and results for the same inputs. Record each comparison and its Evidence path in a table such as:
+The output contains `comparison.md`, `visual-summary.json`, per-step `visual/step-*/pixel-diff.json` and `pixel-diff.png` heatmaps, and the two normalized captures. When REA runs it also contains `rea-comparison.json`. Add `--no-rea` when REA is unavailable. The REA comparison has a 600-second default timeout, configurable with `--timeout-seconds`. The pixel gate defaults to exact equality; `--channel-threshold N` and `--max-changed-ratio R` allow explicit, reported tolerance. Missing viewport metadata on either side makes visual parity `unknown`, even if both are missing. A zero exit from this helper means captured screenshots passed the pixel gate and REA, if selected, completed its comparison with a valid result. It does **not** certify every behavior. A nonzero exit identifies a visual difference or incomplete comparison; read the report.
+
+REA aligns unique `step_id` values and action kinds, and requires compatible browser/origin context. A reference domain versus localhost can produce an alignment failure. Do **not** translate that into a parity verdict. Inspect the captures side by side: compare visible text/DOM, accessibility names and order, navigation destination, control states, and results for the same inputs. Raw DOM may differ because source formatting differs while rendered pixels match. Record each comparison and its Evidence path in a table such as:
 
 | Journey / state | Reference Evidence | Rebuild Evidence | Result | Difference or unknown |
 | --- | --- | --- | --- | --- |
 | Home / desktop ready | path + step | path + step | matched / different / unknown | concrete observation |
 
 Prioritize broken flows, missing content, wrong layout, typography/spacing/color, and then smaller visual discrepancies. Make a code change for each observed difference and recapture the affected state. An unchanged REA result applies only to the captured artifacts and selected steps. Missing, truncated, or unrequested artifacts remain unknown. Do not claim pixel-perfect equality from a visual glance or a source-code comparison.
+
+For PNG screenshots from a browser tool other than REA, run the independent comparator directly:
+
+```bash
+python3 <this-skill-directory>/scripts/pixel_diff.py reference.png rebuild.png --output NEW_PIXEL_DIR
+```
+
+It uses Python's standard library and supports 8-bit, noninterlaced RGB/RGBA PNG. Match viewport, device scale, browser/font environment, loading state, and dynamic content before interpreting a pixel difference. The heatmap highlights changed pixels; a tolerance does not prove that those changes are harmless.
 
 Capture may follow redirects and ordinary page requests. Respect the supplied target and the user's authorization; use test accounts or fixtures for account-specific states when provided.

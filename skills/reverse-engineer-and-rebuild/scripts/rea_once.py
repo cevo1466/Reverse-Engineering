@@ -16,9 +16,13 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit
 import zipfile
 
+from report_safety import create_report_dir
+
 
 REA_NPX_VERSION = "6.8.0"
 PREVIEW_LIMIT = 16 * 1024 * 1024
+VALIDATION_LIMIT = 128 * 1024 * 1024
+DEFAULT_TIMEOUT_SECONDS = 600
 PROVIDERS = ("ghidra", "hopper", "ida", "kuna")
 
 
@@ -235,16 +239,52 @@ def evidence_preview(path: Path) -> list[str]:
     return ["Raw REA output retained; inspect its Evidence and coverage before making claims."]
 
 
-def run_step(prefix: list[str], label: str, command: list[str], output: Path) -> dict:
+def validate_evidence(path: Path, expected_operation: str) -> tuple[bool, str]:
+    """A successful process must produce a recognizable result, not merely bytes."""
+    if path.stat().st_size == 0:
+        return False, "No JSON output was produced."
+    if path.stat().st_size > VALIDATION_LIMIT:
+        return False, "JSON exceeds the 128 MB validation limit. Inspect it manually."
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False, "Output is not valid JSON."
+    for _ in range(4):
+        if not isinstance(payload, dict):
+            return False, "Output is not a JSON object."
+        if payload.get("error") is not None:
+            return False, "REA returned an error object."
+        if "operation" in payload or "normalized_result" in payload:
+            if payload.get("operation") not in (expected_operation, expected_operation.replace("-", "_")):
+                return False, "Evidence operation does not match the requested command."
+            if not isinstance(payload.get("normalized_result"), dict):
+                return False, "Evidence has no normalized_result object."
+            return True, "Validated REA Evidence."
+        payload = next((payload[key] for key in ("data", "evidence", "result", "value") if isinstance(payload.get(key), dict)), None)
+    return False, "Output is not recognizable REA Evidence."
+
+
+def run_step(prefix: list[str], label: str, command: list[str], output: Path, timeout_seconds: float) -> dict:
     stdout_path = output / f"{label}.json"
     stderr_path = output / f"{label}.stderr.txt"
     argv = prefix + command
+    timed_out = False
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
-        completed = subprocess.run(argv, stdout=stdout, stderr=stderr, check=False)
+        try:
+            completed = subprocess.run(argv, stdout=stdout, stderr=stderr, check=False, timeout=timeout_seconds)
+            exit_code = completed.returncode
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            exit_code = None
+            stderr.write(f"\nCommand timed out after {timeout_seconds:g} seconds.\n".encode())
+    valid, validation = validate_evidence(stdout_path, label)
     return {
         "step": label,
         "command": argv,
-        "exit_code": completed.returncode,
+        "exit_code": exit_code,
+        "timed_out": timed_out,
+        "valid_evidence": valid,
+        "validation": validation,
         "stdout": stdout_path.name,
         "stderr": stderr_path.name,
         "preview": evidence_preview(stdout_path) if stdout_path.stat().st_size else ["No JSON output was produced."],
@@ -263,7 +303,7 @@ def write_report(manifest: dict, output: Path) -> None:
     for step in manifest["steps"]:
         lines.extend([
             f"### {step['step']}", "",
-            f"Exit code: `{step['exit_code']}`. Raw output: `{step['stdout']}`. Diagnostics: `{step['stderr']}`.", "",
+            f"Exit code: `{step['exit_code']}`. Evidence valid: `{step['valid_evidence']}`. {step['validation']} Raw output: `{step['stdout']}`. Diagnostics: `{step['stderr']}`.", "",
         ])
         lines.extend(f"- {item}" for item in step["preview"])
         lines.append("")
@@ -288,9 +328,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--browser-executable", help="absolute path to installed Chrome-family browser")
     parser.add_argument("--rea", help="existing REA executable to use")
     parser.add_argument("--no-download", action="store_true", help="require an installed REA CLI")
+    parser.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS, help="limit for each REA command (default: 600 seconds)")
     args = parser.parse_args(argv)
     try:
         kind, path = classify(args.target, args.mode)
+        if not 0 < args.timeout_seconds <= 3600:
+            raise ValueError("--timeout-seconds must be greater than 0 and at most 3600")
         if args.provider and kind != "native":
             raise ValueError("--provider applies only to native targets")
         if args.android_code and kind != "android":
@@ -300,9 +343,10 @@ def main(argv: list[str] | None = None) -> int:
             args.browser_executable = find_browser(args.browser_executable)
         if args.output:
             output = Path(args.output).expanduser().resolve()
-            output.mkdir(parents=True, exist_ok=False)
+            create_report_dir(output)
         else:
             output = Path(tempfile.mkdtemp(prefix="rea-rebuild-"))
+            (output / ".gitignore").write_text("*\n", encoding="utf-8")
         steps, warnings = make_steps(args, kind, path, output)
         digest = file_sha256(path)
     except (ValueError, OSError) as error:
@@ -320,18 +364,18 @@ def main(argv: list[str] | None = None) -> int:
     used_fallback = False
     try:
         for label, command in steps:
-            step = run_step(prefix, label, command, output)
+            step = run_step(prefix, label, command, output, args.timeout_seconds)
             manifest["steps"].append(step)
-            if step["exit_code"] != 0:
+            if step["exit_code"] != 0 or not step["valid_evidence"]:
                 if kind == "native" and label == "analyze" and path is not None:
                     manifest["warnings"].append("Native analysis failed. The artifact inventory below is a fallback, not code decompilation. Inspect analyze.stderr.txt for the provider error.")
-                    fallback = run_step(prefix, "inspect-artifact", ["inspect-artifact", str(path), "--json"], output)
+                    fallback = run_step(prefix, "inspect-artifact", ["inspect-artifact", str(path), "--json"], output, args.timeout_seconds)
                     manifest["steps"].append(fallback)
-                    used_fallback = fallback["exit_code"] == 0 and (output / fallback["stdout"]).stat().st_size > 0
+                    used_fallback = fallback["exit_code"] == 0 and fallback["valid_evidence"]
                 break
     except (KeyboardInterrupt, OSError) as error:
         manifest["warnings"].append(f"Execution interrupted: {error}")
-    all_succeeded = len(manifest["steps"]) == len(steps) and all(step["exit_code"] == 0 and (output / step["stdout"]).stat().st_size > 0 for step in manifest["steps"])
+    all_succeeded = len(manifest["steps"]) == len(steps) and all(step["exit_code"] == 0 and step["valid_evidence"] for step in manifest["steps"])
     manifest["status"] = "succeeded" if all_succeeded else "partial" if used_fallback else "failed"
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     write_report(manifest, output)

@@ -18,6 +18,18 @@
       "prompt": "/tmp/sample-tool adlı CLI programının belgelenmiş dönüştürme komutunu çalışan bir program olarak yeniden yaz. Başarılı, bozuk giriş ve hata durumlarını orijinalle karşılaştır.",
       "expected_output": "Çalışan CLI; üç orijinal ve yeniden yapım işlem örneğinin çıktıları veya karşılaştırma kayıtları; yalnızca gözlemlenen davranışa dayalı eşitlik iddiası.",
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "REA kurulu değil. https://example.test/cart sitesindeki sepet ekleme, miktar değiştirme ve boş sepet akışını çalışan uygulama olarak yeniden oluştur. Her durumun hedef ve kopya PNG ekran görüntülerini aynı viewport'ta otomatik karşılaştır ve fark görselini sakla.",
+      "expected_output": "REA olmadan mevcut tarayıcı araçlarıyla çalışan sepet akışı; eşleşen durumların PNG kayıtları, piksel farkı raporları ve fark görselleri; karşılaştırılamayan durumlar için açık bilinmeyen kaydı.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "https://example.test/api/items API'sini ve onu kullanan arayüzü yeniden oluştur. Oluşturma, ardından okuma, geçersiz giriş, güncelleme ve silme akışlarında hedef ve kopyanın HTTP yanıtlarını ve kalıcı durumunu karşılaştır.",
+      "expected_output": "Çalışan API ve bağlı arayüz; doğrulama ve kalıcı veri davranışı; aynı başlangıç durumundan alınmış istek/yanıt/durum kayıtları ve compare_http.py karşılaştırması; gizli kurallar için sınır beyanı.",
+      "files": []
     }
   ]
 }

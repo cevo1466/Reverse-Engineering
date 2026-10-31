@@ -21,10 +21,12 @@ class ReaOnceTests(unittest.TestCase):
         self.rea = self.root / "rea-stub"
         self.rea.write_text(
             "#!/usr/bin/env python3\n"
-            "import json, os, sys\n"
+            "import json, os, sys, time\n"
             "from pathlib import Path\n"
             "args = sys.argv[1:]\n"
             "with Path(os.environ['REA_STUB_LOG']).open('a') as f: f.write(json.dumps(args) + '\\n')\n"
+            "if os.environ.get('REA_STUB_SLEEP'): time.sleep(float(os.environ['REA_STUB_SLEEP']))\n"
+            "if os.environ.get('REA_STUB_INVALID') == args[0]: print('{broken'); sys.exit(0)\n"
             "if os.environ.get('REA_STUB_FAIL') == args[0]:\n"
             "    print(json.dumps({'error': 'fixture failure', 'code': 'fixture_error', 'category': 'execution_failure', 'message': 'fixture failed', 'details': {'partial_observation': {'operation': args[0]}}}))\n"
             "    sys.exit(7)\n"
@@ -33,11 +35,15 @@ class ReaOnceTests(unittest.TestCase):
         )
         self.rea.chmod(0o755)
 
-    def run_cli(self, target, *options, fail=None):
+    def run_cli(self, target, *options, fail=None, invalid=None, sleep=None):
         env = os.environ.copy()
         env["REA_STUB_LOG"] = str(self.log)
         if fail:
             env["REA_STUB_FAIL"] = fail
+        if invalid:
+            env["REA_STUB_INVALID"] = invalid
+        if sleep:
+            env["REA_STUB_SLEEP"] = str(sleep)
         return subprocess.run(
             [sys.executable, str(SCRIPT), str(target), "--rea", str(self.rea), "--output", str(self.root / "report"), *options],
             capture_output=True, text=True, env=env, check=False,
@@ -58,6 +64,27 @@ class ReaOnceTests(unittest.TestCase):
         self.assertEqual(self.commands()[0][:2], ["analyze-javascript-application", str(target)])
         self.assertEqual(self.manifest()["status"], "succeeded")
         self.assertIn("Evidence operation", (self.root / "report" / "report.md").read_text())
+        self.assertEqual((self.root / "report" / ".gitignore").read_text(), "*\n")
+
+    def test_zero_exit_with_invalid_json_is_failure(self):
+        target = self.root / "file.bin"
+        target.write_bytes(b"fixture")
+        result = self.run_cli(target, invalid="inspect-artifact")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        step = self.manifest()["steps"][0]
+        self.assertEqual(step["exit_code"], 0)
+        self.assertFalse(step["valid_evidence"])
+        self.assertEqual(self.manifest()["status"], "failed")
+
+    def test_command_timeout_retains_partial_output(self):
+        target = self.root / "file.bin"
+        target.write_bytes(b"fixture")
+        result = self.run_cli(target, "--timeout-seconds", "0.05", sleep=1)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        step = self.manifest()["steps"][0]
+        self.assertTrue(step["timed_out"])
+        self.assertIsNone(step["exit_code"])
+        self.assertIn("timed out", (self.root / "report" / step["stderr"]).read_text())
 
     def test_unknown_installation_directory_uses_desktop_inventory(self):
         target = self.root / "game-install"

@@ -1,6 +1,6 @@
 # Reverse Engineer & Rebuild
 
-Bir URL veya uygulama dosyasından **çalışan bir yeniden yapım** üretmek için agent skill’i. Hedefin görülebilen ekranlarını ve davranışlarını [REA](https://github.com/morluto/rea) ile kaydeder, aynı akışları kodlar, özgün hedefle karşılaştırır ve saptadığı farkları giderir.
+Bir URL veya uygulama dosyasından **çalışan bir yeniden yapım** üretmek için agent skill’i. Hedefin görülebilen ekranlarını ve davranışlarını kaydeder, aynı akışları kodlar, özgün hedefle karşılaştırır ve saptadığı farkları giderir. [REA](https://github.com/morluto/rea) varsa daha derin kanıt toplar; karşılaştırma yardımcıları yalnızca Python standart kütüphanesini kullanır.
 
 > **English:** Give your coding agent a website URL or shipped app artifact. The skill traces observable behavior, builds a runnable reconstruction in your workspace, and verifies the requested flows against the original. It reports exactly which states were compared and what remains unknown.
 
@@ -8,7 +8,7 @@ Bir URL veya uygulama dosyasından **çalışan bir yeniden yapım** üretmek i�
 
 ## Kurulum ve tek çağrı
 
-Python 3.10+, [REA'nın desteklediği Node.js sürümü](https://github.com/morluto/rea/blob/main/docs/installation.md) (`^22.23.4 || ^24.22.1 || >=26.12.1`) ve web hedefleri için Chrome tabanlı bir tarayıcı gerekir.
+Yardımcılar için Python 3.10+ yeterlidir. REA kullanacaksanız [desteklenen Node.js sürümü](https://github.com/morluto/rea/blob/main/docs/installation.md) (`^22.23.4 || ^24.22.1 || >=26.12.1`) gerekir. Web görünümünü gerçekten karşılaştırmak için ekran görüntüsü alabilen bir tarayıcı gerekir.
 
 ```bash
 npx skills add cevo1466/Tersine-M-hendislik --skill reverse-engineer-and-rebuild
@@ -26,18 +26,38 @@ Yerel uygulama örneği:
 $reverse-engineer-and-rebuild /absolute/path/to/app.asar: Ayarlar ekranını ve kaydetme davranışını çalışan bir uygulama olarak yeniden oluştur; gözlemlediğin durumlarla doğrula.
 ```
 
-**Tek çağrı agent iş akışını başlatır.** `skills add` skill talimatlarını kurar; REA'yı, tarayıcıyı veya Ghidra/JADX gibi analiz araçlarını kurmaz. Skill tek başına bağımsız bir `clone` terminal komutu değildir. Sonuç, hedefin erişilebilirliğine, mevcut araçlara ve incelenebilen davranışa bağlıdır.
+**Tek çağrı agent iş akışını başlatır.** `skills add` skill talimatlarını kurar; REA'yı, tarayıcıyı veya Ghidra/JADX gibi analiz araçlarını kurmaz. REA yoksa skill mevcut tarayıcı/HTTP/işletim sistemi araçlarıyla devam eder ve kanıt sınırını belirtir. Skill tek başına bağımsız bir `clone` terminal komutu değildir. Sonuç, hedefin erişilebilirliğine ve incelenebilen davranışa bağlıdır.
 
 ## Skill ne yapar?
 
 | Aşama | Somut çıktı |
 | --- | --- |
-| Hedefi gözlemle | REA'nın ham Evidence JSON'u, hedef kimliği, ekran/işlev akışları ve bilinmeyenler |
+| Hedefi gözlemle | REA Evidence veya mevcut araçların kayıtları; hedef kimliği, ekran/işlev akışları ve bilinmeyenler |
 | Çalışan kopyayı kur | Mevcut projede açılabilen/çalıştırılabilen kod; gezinme, etkileşim, durum ve responsive görünüm |
-| Hedefle karşılaştır | Aynı akışların hedef ve kopya kayıtları; ekran görüntüsü, DOM, erişilebilirlik, URL veya işlem çıktısı farkları |
+| Hedefle karşılaştır | Aynı akışların hedef ve kopya kayıtları; otomatik piksel farkı, DOM, erişilebilirlik, URL, HTTP yanıtı ve kalıcı durum farkları |
 | Farkları gider | Yeniden çalıştırılmış kontroller; hangi akışların eşleştiğini, hangilerinin farklı veya bilinmeyen kaldığını gösteren sonuç |
 
 Web sitesi ve web uygulaması, bu sürümün en ayrıntılı doğrulama yoludur. APK, Electron/JavaScript, .NET, native ikili ve arşivler için de analiz ve yeniden yapım yolu vardır; bu hedeflerde gerçek davranış eşitliği ancak özgün uygulama çalıştırılabildiğinde ve karşılaştırılabilir örnekler gözlemlendiğinde söylenir. Statik analiz tek başına “birebir” kanıtı değildir.
+
+### Görsel doğrulama
+
+`compare_web.py`, REA tarayıcı kayıtlarındaki aynı adımları otomatik eşler ve ekran görüntülerini piksel düzeyinde karşılaştırır. Değişen piksel sayısını, oranını, fark alanını ve ortalama kanal farkını JSON'a yazar; kırmızı fark görseli üretir. REA olmadan da iki PNG dosyası `pixel_diff.py` ile karşılaştırılabilir:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/pixel_diff.py reference.png rebuild.png --output ./pixel-check
+```
+
+Varsayılan ölçüt tam piksel eşitliğidir. İstenirse açıkça belirtilen kanal ve değişen piksel oranı eşikleri kullanılabilir. Aynı viewport, ölçek, tarayıcı, font ve sayfa durumu sağlanmadan piksel sonucu “birebir” kanıtı sayılmaz. Araç 8 bit, interlace olmayan RGB/RGBA PNG dosyalarını destekler.
+
+### Backend doğrulama
+
+Skill, istek/yanıtla birlikte **işlem sonrası durumu** kaydeder: örneğin oluşturma, ardından okuma; geçersiz giriş, ardından durumun değişmediğini okuma; güncelleme ve silme. Kaydedilmiş hedef ve kopya vakaları, ağa yeniden istek göndermeyen yardımcıyla karşılaştırılır:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/compare_http.py reference.json rebuild.json --output ./api-check
+```
+
+Bu yöntem test edilen iş kurallarını ve kalıcılığı doğrular. Gözlenemeyen yetkilendirme, eşzamanlılık veya gizli sunucu kurallarını kendiliğinden keşfetmez. [Backend rehberi](skills/reverse-engineer-and-rebuild/references/backend.md) vaka biçimini ve kapsama sınırını açıklar.
 
 ## “Birebir” ne demek?
 
@@ -53,13 +73,17 @@ python3 skills/reverse-engineer-and-rebuild/scripts/rea_once.py /absolute/path/t
 
 Web hedefi için de URL verilebilir. Yardımcı, kurulu `rea` komutunu kullanır; yoksa `npx -y rea-agents@6.8.0` çağırır. Çıktı klasörüne `manifest.json`, `report.md`, adım adım ham JSON ve stderr kayıtları yazar; mevcut klasörün üzerine yazmaz. Çalışan kopyayı yapan, bu kanıttan sonra kod yazan ve karşılaştırmayı yürüten agent’tır.
 
-İki web Evidence kaydını REA ile karşılaştırmak için ikinci yardımcı, Evidence katmanını otomatik açar ve sonuç ile özet tabloyu saklar:
+Her REA komutu varsayılan olarak en fazla 600 saniye çalışır; `--timeout-seconds` ile 1–3600 saniye arasında değiştirilebilir. Sıfır çıkış kodu tek başına başarı sayılmaz: JSON, beklenen REA işlemi ve `normalized_result` doğrulanır. Zaman aşımı ve geçersiz çıktı raporda başarısızlık olarak görünür.
+
+İki web Evidence kaydını karşılaştırmak için ikinci yardımcı, Evidence katmanını otomatik açar; REA varsa onun karşılaştırmasını da çalıştırır ve piksel farklarını her adım için saklar:
 
 ```bash
 python3 skills/reverse-engineer-and-rebuild/scripts/compare_web.py reference-evidence.json rebuild-evidence.json --output ./comparison
 ```
 
-Native kodun derin analizi önceden yapılandırılmış Ghidra/Hopper/IDA/Kuna gerektirir. APK kodu için JADX ve tam JDK gerekir. Linux'taki JavaScript incelemesi için `ps` gerekir. Eksik araç halinde yardımcı mevcut kanıtı korur ve sınırı belirtir. Detaylar [skill talimatlarında](skills/reverse-engineer-and-rebuild/SKILL.md) ve [hedef rehberinde](skills/reverse-engineer-and-rebuild/references/targets.md).
+Tüm yardımcılar, adı ne olursa olsun yeni çıktı klasörünün içine `*` kuralı taşıyan yerel bir `.gitignore` koyar. Böylece ham DOM, istek gövdeleri ve ekran görüntüleri yanlışlıkla `git add` ile repoya girmez. Kanıtları paylaşmadan önce yine de içeriklerini gözden geçirin.
+
+REA kullanılırsa native kodun derin analizi önceden yapılandırılmış Ghidra/Hopper/IDA/Kuna gerektirir. APK kodu için JADX ve tam JDK gerekir. Linux'taki JavaScript incelemesi için `ps` gerekir. Eksik araç halinde skill mevcut kanıtı korur ve sınırı belirtir. Detaylar [skill talimatlarında](skills/reverse-engineer-and-rebuild/SKILL.md), [araçsız gözlem rehberinde](skills/reverse-engineer-and-rebuild/references/fallback.md) ve [hedef rehberinde](skills/reverse-engineer-and-rebuild/references/targets.md).
 
 ## Geliştirme
 
