@@ -91,6 +91,16 @@ python3 skills/reverse-engineer-and-rebuild/scripts/compare_scroll.py ./scroll-r
 
 Spec example: `{"schema_version": 1, "viewport": {"width": 1280, "height": 720}, "probes": [".hero"], "samples": [{"id": "top"}, {"id": "half", "scroll": 0.5, "wait_ms": 400}]}`. It checks settled states at the sampled positions, not the easing between them. `verdict.py` accepts the result directory.
 
+### Design tokens
+
+`extract_tokens.py` reads the computed style of every visible element and ranks the colours, font families and sizes, spacing values, border radii, shadows and `:root` CSS variables by how often they are used. It writes `tokens.json` and `tokens.md`:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/extract_tokens.py --url https://test.example.com/ --viewport 1280x720 --output ./tokens
+```
+
+It sees only visible elements in the loaded state at one viewport (no hover or focus states), so treat the result as a ranked starting point for the rebuild.
+
 ## What “exact” means
 
 The skill aims to match the **observable behavior within the requested scope**. A pixel match applies to the captured viewport, browser, fonts, content, and state. An API match applies to the recorded requests and resulting state. Hidden server rules, inaccessible account states, and unobserved screens remain unknown. Static inspection alone cannot establish runtime parity.

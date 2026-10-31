@@ -111,6 +111,16 @@ python3 skills/reverse-engineer-and-rebuild/scripts/compare_scroll.py ./scroll-r
 
 Örnek tanım: `{"schema_version": 1, "viewport": {"width": 1280, "height": 720}, "probes": [".hero"], "samples": [{"id": "top"}, {"id": "half", "scroll": 0.5, "wait_ms": 400}]}`. Örneklenen konumlardaki oturmuş durumları denetler; aradaki geçiş eğrisini denetlemez. `verdict.py` sonuç klasörünü kabul eder.
 
+### Tasarım token'ları
+
+`extract_tokens.py` görünür her öğenin hesaplanmış stilini okur; renkleri, yazı tipi ailelerini ve boyutlarını, boşluk değerlerini, köşe yuvarlaklıklarını, gölgeleri ve `:root` CSS değişkenlerini kullanım sıklığına göre sıralar. `tokens.json` ve `tokens.md` yazar:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/extract_tokens.py --url https://test.example.com/ --viewport 1280x720 --output ./tokens
+```
+
+Yalnızca yüklenmiş durumdaki, tek ekran boyutundaki görünür öğeleri görür (üzerine gelme veya odak durumları yok). Sonucu kopya için sıralı bir başlangıç noktası olarak kullanın.
+
 ## “Birebir” ne demek?
 
 Skill, kullanıcının istediği ve gözlemleyebildiği **rota, ekran, giriş, etkileşim, görünüm ve çalışma koşullarında** hedefe olabildiğince yakın bir kopya amaçlar. Nihai rapor test edilen viewport'ları ve akışları açıkça listeler. Gizli sunucu mantığı, erişilemeyen hesap durumları veya hiç gözlemlenmemiş ekranlar için tam eşitlik iddiasında bulunmaz. REA'nın [web karşılaştırması](https://github.com/morluto/rea/blob/main/docs/browser-scenario-contract.md#scenario-comparison) farklı alan adlarında eşleştirmeyi reddedebilir; bu durumda kayıtlar doğrudan karşılaştırılır ve otomatik hüküm uydurulmaz.
