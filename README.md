@@ -4,6 +4,8 @@ Bir URL veya uygulama dosyasından **çalışan bir yeniden yapım** üretmek i�
 
 > **English:** Give your coding agent a website URL or shipped app artifact. The skill traces observable behavior, builds a runnable reconstruction in your workspace, and verifies the requested flows against the original. It reports exactly which states were compared and what remains unknown.
 
+[skills.sh sayfasını aç](https://www.skills.sh/cevo1466/tersine-m-hendislik/reverse-engineer-and-rebuild) · [Skill talimatlarını oku](skills/reverse-engineer-and-rebuild/SKILL.md)
+
 ## Kurulum ve tek çağrı
 
 Python 3.10+, [REA'nın desteklediği Node.js sürümü](https://github.com/morluto/rea/blob/main/docs/installation.md) (`^22.23.4 || ^24.22.1 || >=26.12.1`) ve web hedefleri için Chrome tabanlı bir tarayıcı gerekir.
