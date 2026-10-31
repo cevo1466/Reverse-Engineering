@@ -144,6 +144,11 @@ def build_verdict(files: list[Path], output: Path) -> dict:
             seen.add(case["case_id"])
             case["evidence"] = os.path.relpath(source, output)
             cases.append(case)
+    return summarise(cases)
+
+
+def summarise(cases: list[dict]) -> dict:
+    """Build the verdict document for already-normalised cases."""
     totals = {name: sum(case["status"] == name for case in cases) for name in ("matched", "different", "unknown")}
     overall = "different" if totals["different"] else "unknown" if totals["unknown"] or not cases else "matched"
     return {"schema_version": 1, "overall": overall, "totals": totals, "scope": SCOPE, "cases": cases}
@@ -155,8 +160,13 @@ def cell(value: Any) -> str:
 
 def write_report(output: Path, verdict: dict) -> None:
     create_report_dir(output)
+    write_verdict_files(output, verdict)
+
+
+def write_verdict_files(output: Path, verdict: dict) -> None:
+    """Write verdict.json and verdict.md into an existing report directory."""
     (output / "verdict.json").write_text(json.dumps(verdict, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    lines = ["# Verdict", "", f"Overall: **{verdict['overall']}**. {SCOPE}", "", "| Case | Kind | Status | Reason | Evidence |", "| --- | --- | --- | --- | --- |"]
+    lines = ["# Verdict", "", f"Overall: **{verdict['overall']}**. {verdict['scope']}", "", "| Case | Kind | Status | Reason | Evidence |", "| --- | --- | --- | --- | --- |"]
     for case in verdict["cases"]:
         lines.append("| " + " | ".join(cell(case[key]) for key in ("case_id", "kind", "status", "reason", "evidence")) + " |")
     (output / "verdict.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

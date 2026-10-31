@@ -89,6 +89,16 @@ CI içinde kullanım:
 
 “Eşleşti” yalnızca seçilen gözlemlerin eşleştiği anlamına gelir; görülmeyen durumlar kanıtlanmış sayılmaz.
 
+### Birden fazla ekran boyutu
+
+`viewport_matrix.py` aynı senaryoyu birden fazla ekran boyutunda hedefte ve kopyada çalıştırır, tek bir birleşik sonuç yazar. Kimlikler ekran boyutunu taşır (`375x812/search-results`):
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/viewport_matrix.py scenario.json --reference-url https://test.example.com/ --rebuild-url http://127.0.0.1:8080/ --viewports 375x812,768x1024,1440x900 --output ./matrix --allow-remote-actions
+```
+
+Varsayılan boyutlar 375x812, 768x1024 ve 1440x900'dür. Bir boyutta yakalama başarısız olursa yalnızca o boyut `unknown` olur. Çıkış kodları `verdict.py` ile aynıdır.
+
 ## “Birebir” ne demek?
 
 Skill, kullanıcının istediği ve gözlemleyebildiği **rota, ekran, giriş, etkileşim, görünüm ve çalışma koşullarında** hedefe olabildiğince yakın bir kopya amaçlar. Nihai rapor test edilen viewport'ları ve akışları açıkça listeler. Gizli sunucu mantığı, erişilemeyen hesap durumları veya hiç gözlemlenmemiş ekranlar için tam eşitlik iddiasında bulunmaz. REA'nın [web karşılaştırması](https://github.com/morluto/rea/blob/main/docs/browser-scenario-contract.md#scenario-comparison) farklı alan adlarında eşleştirmeyi reddedebilir; bu durumda kayıtlar doğrudan karşılaştırılır ve otomatik hüküm uydurulmaz.

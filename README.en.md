@@ -69,6 +69,16 @@ In CI:
 
 “Matched” means only that the selected observations matched; unseen states are not certified.
 
+### Several viewports at once
+
+`viewport_matrix.py` runs one scenario at several viewports against the reference and the rebuild, then writes one combined verdict whose case IDs carry the viewport (`375x812/search-results`):
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/viewport_matrix.py scenario.json --reference-url https://test.example.com/ --rebuild-url http://127.0.0.1:8080/ --viewports 375x812,768x1024,1440x900 --output ./matrix --allow-remote-actions
+```
+
+The default viewports are 375x812, 768x1024 and 1440x900. A failed capture at one viewport is reported as `unknown` for that viewport only. Exit codes match `verdict.py`.
+
 ## What “exact” means
 
 The skill aims to match the **observable behavior within the requested scope**. A pixel match applies to the captured viewport, browser, fonts, content, and state. An API match applies to the recorded requests and resulting state. Hidden server rules, inaccessible account states, and unobserved screens remain unknown. Static inspection alone cannot establish runtime parity.
