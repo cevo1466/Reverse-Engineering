@@ -48,6 +48,8 @@ For PNG screenshots from a browser tool other than REA, run the independent comp
 python3 <this-skill-directory>/scripts/pixel_diff.py reference.png rebuild.png --output NEW_PIXEL_DIR
 ```
 
-It uses Python's standard library and supports 8-bit, noninterlaced RGB/RGBA PNG. Match viewport, device scale, browser/font environment, loading state, and dynamic content before interpreting a pixel difference. The heatmap highlights changed pixels; a tolerance does not prove that those changes are harmless.
+It uses Python's standard library and supports 8-bit, noninterlaced RGB/RGBA PNG. Check the actual dimensions of **both saved files** before comparing them; a viewport setting may apply only to the active browser tab. Match viewport, device scale, browser/font environment, loading state, and dynamic content before interpreting a pixel difference. Confirm that each file came from the intended original or rebuild URL, especially after switching tabs or changing viewport settings.
+
+If a browser tool exports JPEG only, convert each capture to PNG with an available image tool before using the helper. Record that the source captures were JPEG: conversion preserves their decoded pixels, but JPEG compression is lossy, so even a zero-pixel diff proves equality of the saved captures only. Prefer native PNG capture when the browser offers it. The heatmap highlights changed pixels; a tolerance does not prove that those changes are harmless.
 
 Capture may follow redirects and ordinary page requests. Respect the supplied target and the user's authorization; use test accounts or fixtures for account-specific states when provided.
