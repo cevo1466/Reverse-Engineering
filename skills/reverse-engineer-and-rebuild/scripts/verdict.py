@@ -59,8 +59,12 @@ def count(value: Any) -> int:
 
 
 def detect_kind(data: dict, source: Path) -> str:
-    """Return pixel, capture, web or http; refuse files that match none or several."""
+    """Return pixel, capture, scroll, web or http; refuse files that match none or several."""
     steps = data.get("steps")
+    if data.get("kind") == "scroll_comparison":
+        if not isinstance(steps, list):
+            raise VerdictError(f"{source}: scroll comparison has no steps list")
+        return "scroll"
     kinds = []
     if isinstance(data.get("cases"), list) and isinstance(data.get("summary"), dict):
         kinds.append("http")
@@ -91,6 +95,11 @@ def cases_from(kind: str, data: dict, source: Path) -> list[dict]:
             if row.get("viewport_matches") is not True:
                 problems.append("viewport_matches is not true")
             rows.append(("capture:" + identifier(row.get("id"), f"{source}: capture step"), "different" if problems else "matched", "; ".join(problems) or "pixels, URL path and viewport match"))
+    elif kind == "scroll":
+        for row in data["steps"]:
+            if not isinstance(row, dict):
+                raise VerdictError(f"{source}: scroll sample must be an object")
+            rows.append(("scroll:" + identifier(row.get("id"), f"{source}: scroll sample"), normalise_status(row.get("status")), str(row.get("reason") or "")))
     elif kind == "web":
         for row in data["steps"]:
             if not isinstance(row, dict):

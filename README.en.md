@@ -79,6 +79,18 @@ python3 skills/reverse-engineer-and-rebuild/scripts/viewport_matrix.py scenario.
 
 The default viewports are 375x812, 768x1024 and 1440x900. A failed capture at one viewport is reported as `unknown` for that viewport only. Exit codes match `verdict.py`.
 
+### Scroll and animation
+
+`capture_scroll.py` scrolls the page to chosen positions (fractions of the page height), optionally hovers an element, waits for animations to settle and saves a screenshot plus geometry, opacity and transform of probe selectors. `compare_scroll.py` compares a reference run with a rebuild run sample by sample:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_scroll.py scroll.json --url https://test.example.com/ --output ./scroll-reference
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_scroll.py scroll.json --url http://127.0.0.1:8080/ --output ./scroll-rebuild
+python3 skills/reverse-engineer-and-rebuild/scripts/compare_scroll.py ./scroll-reference/manifest.json ./scroll-rebuild/manifest.json --output ./scroll-check
+```
+
+Spec example: `{"schema_version": 1, "viewport": {"width": 1280, "height": 720}, "probes": [".hero"], "samples": [{"id": "top"}, {"id": "half", "scroll": 0.5, "wait_ms": 400}]}`. It checks settled states at the sampled positions, not the easing between them. `verdict.py` accepts the result directory.
+
 ## What “exact” means
 
 The skill aims to match the **observable behavior within the requested scope**. A pixel match applies to the captured viewport, browser, fonts, content, and state. An API match applies to the recorded requests and resulting state. Hidden server rules, inaccessible account states, and unobserved screens remain unknown. Static inspection alone cannot establish runtime parity.

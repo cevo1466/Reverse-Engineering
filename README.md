@@ -99,6 +99,18 @@ python3 skills/reverse-engineer-and-rebuild/scripts/viewport_matrix.py scenario.
 
 Varsayılan boyutlar 375x812, 768x1024 ve 1440x900'dür. Bir boyutta yakalama başarısız olursa yalnızca o boyut `unknown` olur. Çıkış kodları `verdict.py` ile aynıdır.
 
+### Scroll ve animasyon
+
+`capture_scroll.py` sayfayı seçilen konumlara kaydırır (sayfa yüksekliğinin oranı olarak), isterse bir öğenin üzerine gelir, animasyonların oturmasını bekler; ekran görüntüsü ile seçilen öğelerin konumunu, opaklığını ve dönüşümünü kaydeder. `compare_scroll.py` hedef ve kopya kayıtlarını örnek örnek karşılaştırır:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_scroll.py scroll.json --url https://test.example.com/ --output ./scroll-reference
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_scroll.py scroll.json --url http://127.0.0.1:8080/ --output ./scroll-rebuild
+python3 skills/reverse-engineer-and-rebuild/scripts/compare_scroll.py ./scroll-reference/manifest.json ./scroll-rebuild/manifest.json --output ./scroll-check
+```
+
+Örnek tanım: `{"schema_version": 1, "viewport": {"width": 1280, "height": 720}, "probes": [".hero"], "samples": [{"id": "top"}, {"id": "half", "scroll": 0.5, "wait_ms": 400}]}`. Örneklenen konumlardaki oturmuş durumları denetler; aradaki geçiş eğrisini denetlemez. `verdict.py` sonuç klasörünü kabul eder.
+
 ## “Birebir” ne demek?
 
 Skill, kullanıcının istediği ve gözlemleyebildiği **rota, ekran, giriş, etkileşim, görünüm ve çalışma koşullarında** hedefe olabildiğince yakın bir kopya amaçlar. Nihai rapor test edilen viewport'ları ve akışları açıkça listeler. Gizli sunucu mantığı, erişilemeyen hesap durumları veya hiç gözlemlenmemiş ekranlar için tam eşitlik iddiasında bulunmaz. REA'nın [web karşılaştırması](https://github.com/morluto/rea/blob/main/docs/browser-scenario-contract.md#scenario-comparison) farklı alan adlarında eşleştirmeyi reddedebilir; bu durumda kayıtlar doğrudan karşılaştırılır ve otomatik hüküm uydurulmaz.
