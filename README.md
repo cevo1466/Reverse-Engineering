@@ -71,6 +71,24 @@ python3 skills/reverse-engineer-and-rebuild/scripts/compare_http.py ./reference-
 
 Senaryo kaydedici, ilk yanıttan üretilen kimliği sonraki isteklerde kullanabilir ve işlem sonrası durumu ayrıca okuyabilir. Uzak test sunucuları açık `--allow-remote-test` seçeneği gerektirir; yazma istekleri otomatik tekrarlanmaz. Bu yöntem test edilen iş kurallarını ve kalıcılığı doğrular. Gözlenemeyen yetkilendirme, eşzamanlılık veya gizli sunucu kurallarını kendiliğinden keşfetmez. [Backend rehberi](skills/reverse-engineer-and-rebuild/references/backend.md) vaka biçimini ve kapsama sınırını açıklar.
 
+### Birleşik sonuç
+
+Birden fazla karşılaştırmanın çıktısı tek bir sonuçta birleştirilebilir. `verdict.py` yeni karşılaştırma yapmaz; `pixel_diff.py`, `compare_capture.py`, `compare_web.py` ve `compare_http.py` çıktılarını okur, her satırı `matched`, `different` veya `unknown` olarak yazar ve `verdict.json` ile `verdict.md` üretir:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/verdict.py ./web-check ./api-check --output ./verdict
+```
+
+Çıkış kodu: `0` hepsi eşleşti, `1` en az bir fark var, `2` belirsiz durum veya hata var. Eşikler (`--channel-threshold`, `--max-changed-ratio`) ilgili karşılaştırma aracında kalır; `verdict.py` yalnızca orada kaydedilen sonucu okur. Tanınmayan bir değer hiçbir zaman “eşleşti” sayılmaz. Bir klasör verirseniz içindeki `pixel-diff.json`, `comparison.json` ve `visual-summary.json` dosyaları okunur.
+
+CI içinde kullanım:
+
+```yaml
+- run: python3 skills/reverse-engineer-and-rebuild/scripts/verdict.py ./web-check ./api-check --output ./verdict
+```
+
+“Eşleşti” yalnızca seçilen gözlemlerin eşleştiği anlamına gelir; görülmeyen durumlar kanıtlanmış sayılmaz.
+
 ## “Birebir” ne demek?
 
 Skill, kullanıcının istediği ve gözlemleyebildiği **rota, ekran, giriş, etkileşim, görünüm ve çalışma koşullarında** hedefe olabildiğince yakın bir kopya amaçlar. Nihai rapor test edilen viewport'ları ve akışları açıkça listeler. Gizli sunucu mantığı, erişilemeyen hesap durumları veya hiç gözlemlenmemiş ekranlar için tam eşitlik iddiasında bulunmaz. REA'nın [web karşılaştırması](https://github.com/morluto/rea/blob/main/docs/browser-scenario-contract.md#scenario-comparison) farklı alan adlarında eşleştirmeyi reddedebilir; bu durumda kayıtlar doğrudan karşılaştırılır ve otomatik hüküm uydurulmaz.

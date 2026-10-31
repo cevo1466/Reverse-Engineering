@@ -51,6 +51,24 @@ python3 skills/reverse-engineer-and-rebuild/scripts/compare_http.py ./original-a
 
 [Backend scenario format and safety rules](skills/reverse-engineer-and-rebuild/references/backend.md) explain variable binding, post-write probes, remote test instances, and private transcripts. Remote targets require an explicit flag; the recorder never retries writes. Each new report directory ignores its own contents in Git.
 
+### Combined verdict
+
+`verdict.py` combines several comparison results into one answer. It does not compare anything itself. It reads the output of `pixel_diff.py`, `compare_capture.py`, `compare_web.py` and `compare_http.py`, labels every row `matched`, `different` or `unknown`, and writes `verdict.json` and `verdict.md`:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/verdict.py ./web-check ./api-check --output ./verdict
+```
+
+Exit code: `0` everything matched, `1` at least one difference, `2` something is unknown or an input error occurred. Thresholds (`--channel-threshold`, `--max-changed-ratio`) stay with the comparison tool; `verdict.py` only reads the result recorded there. An unrecognised value is never counted as a match. When you pass a directory, it reads the `pixel-diff.json`, `comparison.json` and `visual-summary.json` files directly inside it.
+
+In CI:
+
+```yaml
+- run: python3 skills/reverse-engineer-and-rebuild/scripts/verdict.py ./web-check ./api-check --output ./verdict
+```
+
+“Matched” means only that the selected observations matched; unseen states are not certified.
+
 ## What “exact” means
 
 The skill aims to match the **observable behavior within the requested scope**. A pixel match applies to the captured viewport, browser, fonts, content, and state. An API match applies to the recorded requests and resulting state. Hidden server rules, inaccessible account states, and unobserved screens remain unknown. Static inspection alone cannot establish runtime parity.
