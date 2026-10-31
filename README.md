@@ -6,14 +6,14 @@ Bir URL veya uygulama dosyasından **çalışan bir yeniden yapım** üretmek i�
 
 [Read the English guide](README.en.md).
 
-[skills.sh sayfasını aç](https://www.skills.sh/cevo1466/tersine-m-hendislik/reverse-engineer-and-rebuild) · [Skill talimatlarını oku](skills/reverse-engineer-and-rebuild/SKILL.md)
+[skills.sh sayfasını aç](https://www.skills.sh/cevo1466/reverse-engineering/reverse-engineer-and-rebuild) · [Skill talimatlarını oku](skills/reverse-engineer-and-rebuild/SKILL.md)
 
 ## Kurulum ve tek çağrı
 
 Yardımcılar için Python 3.10+ yeterlidir. REA kullanacaksanız [desteklenen Node.js sürümü](https://github.com/morluto/rea/blob/main/docs/installation.md) (`^22.23.4 || ^24.22.1 || >=26.12.1`) gerekir. Web görünümünü gerçekten karşılaştırmak için ekran görüntüsü alabilen bir tarayıcı gerekir.
 
 ```bash
-npx skills add cevo1466/Tersine-M-hendislik --skill reverse-engineer-and-rebuild
+npx skills add cevo1466/Reverse-Engineering --skill reverse-engineer-and-rebuild
 ```
 
 Ardından skill destekleyen kodlama agent’ınıza tek bir istek verin:

@@ -2,12 +2,12 @@
 
 An agent skill for rebuilding a **working** website, app, API, or feature from a URL or a shipped artifact. It guides an agent through observation, implementation, comparison, and correction. Every reported match is tied to the routes, inputs, states, and environments that were actually tested.
 
-[Skill instructions](skills/reverse-engineer-and-rebuild/SKILL.md) · [skills.sh listing](https://www.skills.sh/cevo1466/tersine-m-hendislik/reverse-engineer-and-rebuild) · [Türkçe README](README.md)
+[Skill instructions](skills/reverse-engineer-and-rebuild/SKILL.md) · [skills.sh listing](https://www.skills.sh/cevo1466/reverse-engineering/reverse-engineer-and-rebuild) · [Türkçe README](README.md)
 
 ## Install and invoke
 
 ```bash
-npx skills add cevo1466/Tersine-M-hendislik --skill reverse-engineer-and-rebuild
+npx skills add cevo1466/Reverse-Engineering --skill reverse-engineer-and-rebuild
 ```
 
 Then give a skill-aware coding agent one request:
