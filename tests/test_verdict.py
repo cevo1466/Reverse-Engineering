@@ -212,5 +212,54 @@ class VerdictCommandTests(unittest.TestCase):
         self.assertEqual(list((self.root / "out").iterdir()), [])
 
 
+def png(rgb):
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(b"\x00" + bytes(rgb))) + chunk(b"IEND", b"")
+
+
+class RealHelperTests(unittest.TestCase):
+    """Run the real helpers on tiny inputs so detection stays in step with their output."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+
+    def helper(self, script, *args):
+        return subprocess.run([sys.executable, str(SCRIPTS / script), *map(str, args)], capture_output=True, text=True, check=False)
+
+    def pixel_run(self, name, rebuild_rgb):
+        (self.root / "ref.png").write_bytes(png((255, 0, 0)))
+        (self.root / f"{name}.png").write_bytes(png(rebuild_rgb))
+        return self.helper("pixel_diff.py", self.root / "ref.png", self.root / f"{name}.png", "--output", self.root / name)
+
+    def http_run(self, name):
+        transcript = {"schema_version": 1, "cases": [{"id": "create", "request": {"method": "POST", "path": "/api/items"}, "response": {"status": 201, "body": {"id": 1}}}]}
+        for side in ("ref", "reb"):
+            (self.root / f"{name}-{side}.json").write_text(json.dumps(transcript), encoding="utf-8")
+        return self.helper("compare_http.py", self.root / f"{name}-ref.json", self.root / f"{name}-reb.json", "--output", self.root / name)
+
+    def verdict_run(self, *paths):
+        return self.helper("verdict.py", *paths, "--output", self.root / "verdict")
+
+    def test_matching_real_results_exit_zero(self):
+        self.assertEqual(self.pixel_run("same", (255, 0, 0)).returncode, 0)
+        self.assertEqual(self.http_run("api").returncode, 0)
+        completed = self.verdict_run(self.root / "same", self.root / "api")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        report = json.loads((self.root / "verdict" / "verdict.json").read_text(encoding="utf-8"))
+        self.assertEqual({case["case_id"]: case["status"] for case in report["cases"]}, {"pixel:same": "matched", "http:create": "matched"})
+
+    def test_different_real_pixels_exit_one(self):
+        self.assertEqual(self.pixel_run("changed", (0, 0, 255)).returncode, 1)
+        self.assertEqual(self.http_run("api").returncode, 0)
+        completed = self.verdict_run(self.root / "changed", self.root / "api")
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        report = json.loads((self.root / "verdict" / "verdict.json").read_text(encoding="utf-8"))
+        self.assertEqual({case["case_id"]: case["status"] for case in report["cases"]}, {"pixel:changed": "different", "http:create": "matched"})
+
+
 if __name__ == "__main__":
     unittest.main()
