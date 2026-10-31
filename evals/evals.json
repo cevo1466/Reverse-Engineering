@@ -1,0 +1,23 @@
+{
+  "skill_name": "rea-one-shot",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Bu Electron uygulamasındaki arama kutusunun sonuçları nereden aldığını incele: /tmp/sample-app.asar. Dosya, fonksiyon ve kanıt bağlantılarını göster.",
+      "expected_output": "REA ile statik JavaScript/Electron analizi; arama akışına odaklanan kanıtlı açıklama, kapsama ve bilinmeyenler.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Elimde yalnızca /tmp/sample-program adlı ELF var. Ghidra hazır; lisans doğrulamasının hangi fonksiyonlarda yapıldığını kanıtlarıyla açıkla.",
+      "expected_output": "Yapılandırılmış sağlayıcıyla yerel ikili analiz; doğrulanmış çapraz başvurular, pseudocode sınırları ve kanıt kaynakları.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "https://example.com sayfasının ilk yüklenişinde hangi öğeler görünüyor? DOM kanıtını göster, sayfada etkileşim uydurma.",
+      "expected_output": "Tarayıcı senaryosu ile seçilen URL'nin DOM/erişilebilirlik kanıtı; tek sayfa yükünün sınırları.",
+      "files": []
+    }
+  ]
+}
