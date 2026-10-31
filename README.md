@@ -43,13 +43,21 @@ Web sitesi ve web uygulaması, bu sürümün en ayrıntılı doğrulama yoludur.
 
 ### Görsel doğrulama
 
-`compare_web.py`, REA tarayıcı kayıtlarındaki aynı adımları otomatik eşler ve ekran görüntülerini piksel düzeyinde karşılaştırır. Değişen piksel sayısını, oranını, fark alanını ve ortalama kanal farkını JSON'a yazar; kırmızı fark görseli üretir. REA olmadan da iki PNG dosyası `pixel_diff.py` ile karşılaştırılabilir:
+`compare_web.py`, REA tarayıcı kayıtlarındaki aynı adımları otomatik eşler ve ekran görüntülerini piksel düzeyinde karşılaştırır. REA yoksa kurulu Chrome/Chromium ile `capture_web.py` aynı etkileşim senaryosunu hedefte ve kopyada çalıştırıp her adım için PNG, DOM, erişilebilirlik ağacı ve URL kaydeder. `compare_capture.py` tüm adımların görüntülerini ve rota yollarını tek çağrıda karşılaştırır:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_web.py scenario.json --url http://127.0.0.1:8080/ --output ./reference-web
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_web.py scenario.json --url http://127.0.0.1:8081/ --output ./rebuild-web
+python3 skills/reverse-engineer-and-rebuild/scripts/compare_capture.py ./reference-web/manifest.json ./rebuild-web/manifest.json --output ./web-check
+```
+
+Senaryo örneği ve uzak test hedefindeki etkileşim izni için [web rehberine](skills/reverse-engineer-and-rebuild/references/web.md) bakın. Ayrı iki PNG dosyası da `pixel_diff.py` ile karşılaştırılabilir:
 
 ```bash
 python3 skills/reverse-engineer-and-rebuild/scripts/pixel_diff.py reference.png rebuild.png --output ./pixel-check
 ```
 
-Varsayılan ölçüt tam piksel eşitliğidir. İstenirse açıkça belirtilen kanal ve değişen piksel oranı eşikleri kullanılabilir. Aynı viewport, ölçek, tarayıcı, font ve sayfa durumu sağlanmadan piksel sonucu “birebir” kanıtı sayılmaz. Araç 8 bit, interlace olmayan RGB/RGBA PNG dosyalarını destekler.
+Araçlar değişen piksel sayısını, oranını, fark alanını ve ortalama kanal farkını JSON'a yazar; fark görseli üretir. Varsayılan ölçüt tam piksel eşitliğidir. İstenirse açıkça belirtilen kanal ve değişen piksel oranı eşikleri kullanılabilir. Aynı viewport, ölçek, tarayıcı, font ve sayfa durumu sağlanmadan piksel sonucu “birebir” kanıtı sayılmaz. Araç 8 bit, interlace olmayan RGB/RGBA PNG dosyalarını destekler.
 
 ### Backend doğrulama
 

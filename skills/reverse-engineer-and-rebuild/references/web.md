@@ -24,6 +24,35 @@ This is a schema example, not a locator or readiness claim about `example.com`. 
 
 For a local HTML project, start its normal development server and capture its loopback HTTP URL. REA's browser scenario accepts HTTP(S) start URLs, not `file://`. If the environment cannot start a server or browser, inspect the files and available outputs but leave runtime and visual parity `unknown`.
 
+### Without REA: installed Chrome or Chromium
+
+The bundled browser recorder runs a disposable Chrome profile and saves native PNG, DOM, accessibility tree, URL, and actual screenshot dimensions for each step. It needs Python 3.10+ and an installed Chrome/Chromium executable; no Node package or Python browser package is needed. A scenario names the viewport and an ordered journey:
+
+```json
+{
+  "schema_version": 1,
+  "viewport": {"width": 1280, "height": 720},
+  "steps": [
+    {"id": "initial", "ready_selector": "main"},
+    {"id": "search-results", "actions": [
+      {"type": "fill", "selector": "input[name=q]", "value": "example"},
+      {"type": "click", "selector": "button[type=submit]"},
+      {"type": "wait_for", "selector": "#results", "text": "example"}
+    ]}
+  ]
+}
+```
+
+`click`, `fill`, `press` (`Enter`, `Escape`, `Tab`), and `wait_for` (`visible`/`hidden`, optional expected text) are supported. Use a readiness check tied to the actual result, particularly after an asynchronous action. Selectors may differ between target and rebuild; when they do, create two equivalent scenario files with the same step IDs and user inputs. Start both apps from equivalent seed state, then run:
+
+```bash
+python3 <this-skill-directory>/scripts/capture_web.py reference-scenario.json --url https://test.example.com/ --output NEW_REFERENCE_DIR --allow-remote-actions
+python3 <this-skill-directory>/scripts/capture_web.py rebuild-scenario.json --url http://127.0.0.1:8080/ --output NEW_REBUILD_DIR
+python3 <this-skill-directory>/scripts/compare_capture.py NEW_REFERENCE_DIR/manifest.json NEW_REBUILD_DIR/manifest.json --output NEW_COMPARISON_DIR
+```
+
+The recorder refuses interaction steps on a remote URL unless `--allow-remote-actions` is supplied for an authorized test target. Do not run write actions against a live production account. `compare_capture.py` checks step IDs/order, URL paths, recorded viewport dimensions, screenshot hashes, and pixels; it writes an aggregate report plus a diff image for each step. A zero exit proves only the selected visual observations and paths match. Inspect the saved DOM/accessibility evidence and actual behavior separately. The browser does not reset application state or emulate a touch device; `viewport` controls CSS layout at device scale 1.
+
 ## Compare and fix
 
 Run both apps and save the reference and rebuild Evidence files. The bundled helper extracts their `normalized_result` captures before invoking REA; passing the full Evidence wrappers straight to `rea compare-web-captures` is an input error in REA 6.8.0. It also decodes every aligned captured screenshot and compares pixels at matching viewport settings:

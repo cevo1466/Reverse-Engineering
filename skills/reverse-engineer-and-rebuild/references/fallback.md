@@ -4,7 +4,7 @@ REA improves provenance and analysis depth, but is optional to the rebuild workf
 
 | Target | Available observation path | Limit |
 | --- | --- | --- |
-| Website or web app | Browser automation, DevTools, or a saved HAR; capture the same journeys, viewport, screenshots, DOM/text, accessibility, and relevant requests on both sides. Run `scripts/pixel_diff.py` on PNG screenshots. | Without a browser, rendered layout and interaction parity remain unknown. Plain HTTP HTML does not prove rendered state. |
+| Website or web app | With installed Chrome/Chromium, run `scripts/capture_web.py` on equivalent original and rebuild journeys, then `scripts/compare_capture.py` on their manifests. Other browser tools can supply PNG screenshots for `scripts/pixel_diff.py`; capture DOM/text, accessibility, and relevant requests when available. | Without a browser, rendered layout and interaction parity remain unknown. Plain HTTP HTML does not prove rendered state. The capture comparison checks saved pixels and URL paths, not every interaction or backend effect. |
 | HTTP API/backend | Capture repeatable request/response/state scenarios on a resettable test instance with `scripts/capture_http.py`; compare the saved transcripts with `scripts/compare_http.py`. | Traffic shows observed cases, not hidden rules or production consistency. |
 | JavaScript/Electron source tree | Inspect entry points, package metadata, imports, IPC, assets, and available source maps; run permitted local examples. | Bundled/minified code may hide relationships; static reading does not prove behavior. |
 | ZIP/APK/archive | Use Python's `zipfile`/`tarfile` or existing archive tools to inventory members and hashes. | An inventory does not decompile native or Android code. |

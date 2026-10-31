@@ -16,7 +16,7 @@ Then give a skill-aware coding agent one request:
 $reverse-engineer-and-rebuild https://example.com: Rebuild the home page and search flow as a working app in this project. Compare desktop and mobile states with the original, fix observed differences, and report what remains unknown.
 ```
 
-The invocation starts an agent workflow. It is not a standalone terminal command that generates an arbitrary clone without an agent. Python 3.10+ runs the bundled comparison helpers. [REA](https://github.com/morluto/rea) is optional and provides deeper evidence when available; visual verification still needs a browser that can capture screenshots.
+The invocation starts an agent workflow. It is not a standalone terminal command that generates an arbitrary clone without an agent. Python 3.10+ runs the bundled helpers. [REA](https://github.com/morluto/rea) is optional and provides deeper evidence when available. Without REA, an installed Chrome/Chromium browser can capture repeatable interaction journeys directly as PNG, DOM, accessibility, and URL evidence.
 
 ## What you get
 
@@ -27,7 +27,15 @@ The invocation starts an agent workflow. It is not a standalone terminal command
 | Compare | Target and rebuild captures for the same conditions, with concrete differences |
 | Refine | Repeated checks after fixes and a scoped parity report |
 
-For websites, the skill compares visible states, URLs, accessibility, DOM, and screenshots. The independent PNG helper reports changed pixels, their ratio and bounding box, and a diff image:
+For websites, the skill compares visible states, URLs, accessibility, DOM, and screenshots. With installed Chrome/Chromium, the REA-free browser recorder and comparison helper cover every named step in a scenario:
+
+```bash
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_web.py scenario.json --url http://127.0.0.1:8080/ --output ./original-web
+python3 skills/reverse-engineer-and-rebuild/scripts/capture_web.py scenario.json --url http://127.0.0.1:8081/ --output ./rebuild-web
+python3 skills/reverse-engineer-and-rebuild/scripts/compare_capture.py ./original-web/manifest.json ./rebuild-web/manifest.json --output ./web-check
+```
+
+See the [web scenario format and remote action rule](skills/reverse-engineer-and-rebuild/references/web.md). The independent PNG helper also compares individual screenshots and reports changed pixels, their ratio and bounding box, and a diff image:
 
 ```bash
 python3 skills/reverse-engineer-and-rebuild/scripts/pixel_diff.py original.png rebuild.png --output ./pixel-check
